@@ -1143,5 +1143,337 @@ staff_id INT NOT NULL,
 FOREIGN KEY (staff_id) REFERENCES Staff(staff_id)
 );
 
+CREATE SEQUENCE appointment_seq 
+START WITH 1 INCREMENT BY 1;
+
+CREATE SEQUENCE waiting_seq START WITH 1 INCREMENT BY 1;
+
+CREATE TABLE Waiting_List (
+    wait_id           INT PRIMARY KEY,
+    patient_id        INT,
+    specialization    VARCHAR2(50),
+    preferred_doctor  INT,
+    created_at        TIMESTAMP DEFAULT SYSTIMESTAMP,
+    status            VARCHAR2(20) DEFAULT 'Waiting'
+);
+set define off;
+CREATE OR REPLACE PROCEDURE Create_Auto_Appointment (
+    p_patient_id     IN INT,
+    p_specialization IN VARCHAR2,
+    p_date           IN DATE,
+    p_time           IN VARCHAR2,
+    p_preferred_doctor IN INT DEFAULT NULL
+)
+IS
+    v_gender      VARCHAR2(10);
+    v_age         INT;
+    v_doctor_id   INT;
+    v_appt_id     INT := appointment_seq.NEXTVAL;
+BEGIN
+    -- Get patient info
+    SELECT gender, age INTO v_gender, v_age
+    FROM Patients
+    WHERE patient_id = p_patient_id;
+
+    -- Try preferred doctor first
+    IF p_preferred_doctor IS NOT NULL THEN
+        BEGIN
+            SELECT doctor_id INTO v_doctor_id
+            FROM Doctors
+            WHERE doctor_id = p_preferred_doctor
+              AND specialization = p_specialization
+              AND availability_status = 'Available';
+        EXCEPTION
+            WHEN NO_DATA_FOUND THEN
+                v_doctor_id := NULL;
+        END;
+    END IF;
+
+    -- If no preferred doctor or not available, assign by logic
+    IF v_doctor_id IS NULL THEN
+        BEGIN
+            IF v_gender = 'Female' THEN
+                SELECT doctor_id INTO v_doctor_id
+                FROM Doctors
+                WHERE specialization = p_specialization
+                  AND gender = 'Female'
+                  AND availability_status = 'Available'
+                  AND ROWNUM = 1;
+            ELSIF v_age >= 60 THEN
+                SELECT doctor_id INTO v_doctor_id
+                FROM Doctors
+                WHERE specialization = p_specialization
+                  AND availability_status = 'Available'
+                ORDER BY experience DESC
+                FETCH FIRST 1 ROWS ONLY;
+            ELSE
+                SELECT doctor_id INTO v_doctor_id
+                FROM Doctors
+                WHERE specialization = p_specialization
+                  AND availability_status = 'Available'
+                  AND ROWNUM = 1;
+            END IF;
+        EXCEPTION
+            WHEN NO_DATA_FOUND THEN
+                v_doctor_id := NULL;
+        END;
+    END IF;
+
+    -- Create appointment if doctor is found
+    IF v_doctor_id IS NOT NULL THEN
+        INSERT INTO Appointment (
+            appointment_id, patient_id, doctor_id,
+            booking_date, appointment_date, appointment_time,
+            appointment_status, problem_description, booking_type
+        )
+        VALUES (
+            v_appt_id, p_patient_id, v_doctor_id,
+            SYSDATE, p_date, p_time,
+            'Scheduled', 'Auto-assigned', 'Walk-in'
+        );
+
+        UPDATE Doctors
+        SET availability_status = 'Busy'
+        WHERE doctor_id = v_doctor_id;
+
+        DBMS_OUTPUT.PUT_LINE('✅ Appointment created with Doctor ID: ' || v_doctor_id);
+    ELSE
+        -- Insert into waiting list
+        INSERT INTO Waiting_List (
+            patient_id, specialization, preferred_doctor, status, created_at
+        ) VALUES (
+            p_patient_id, p_specialization, p_preferred_doctor, 'Waiting', SYSTIMESTAMP
+        );
+
+        DBMS_OUTPUT.PUT_LINE('⏳ No doctor available now. Added to waiting list.');
+    END IF;
+END;
+/
+
+--BEGIN
+ --   Create_Auto_Appointment(
+ --       p_patient_id => 101,
+  --      p_specialization => 'Cardiology',
+ ----       p_date => TO_DATE('2025-07-10', 'YYYY-MM-DD'),
+   --     p_time => '10:00 AM',
+--     p_doctor_pref_id => 201  -- optional  );
+--END;
+
+CREATE OR REPLACE PROCEDURE ASSIGN_PATIENT_BY_PREFERENCE IS
+    CURSOR waitlist_cur IS
+        SELECT wl_id, patient_id, specialization, preferred_doctor
+        FROM Waiting_List
+        WHERE status = 'Waiting'
+        ORDER BY created_at
+        FOR UPDATE SKIP LOCKED;
+
+    v_doctor_id   INT;
+    v_appointment_id INT := appointment_seq.NEXTVAL;
+    v_wl_id       INT;
+    v_patient_id  INT;
+    v_specialization VARCHAR2(100);
+    v_pref_doc    INT;
+BEGIN
+    OPEN waitlist_cur;
+    FETCH waitlist_cur INTO v_wl_id, v_patient_id, v_specialization, v_pref_doc;
+    CLOSE waitlist_cur;
+
+    IF v_wl_id IS NOT NULL THEN
+        BEGIN
+            -- Try preferred doctor first
+            IF v_pref_doc IS NOT NULL THEN
+                SELECT doctor_id INTO v_doctor_id
+                FROM Doctors
+                WHERE doctor_id = v_pref_doc
+                AND availability_status = 'Available'
+                AND specialization = v_specialization;
+            ELSE
+                SELECT doctor_id INTO v_doctor_id
+                FROM Doctors
+                WHERE availability_status = 'Available'
+                AND specialization = v_specialization
+                AND ROWNUM = 1;
+            END IF;
+
+            -- Assign doctor
+            INSERT INTO Appointment (
+                appointment_id, patient_id, doctor_id,
+                booking_date, appointment_date, appointment_time,
+                appointment_status, problem_description, booking_type
+            ) VALUES (
+                v_appointment_id, v_patient_id, v_doctor_id,
+                SYSDATE, SYSDATE, '10:00 AM',
+                'Scheduled', 'Auto-assigned from waitlist', 'Walk-in'
+            );
+
+            -- Mark patient as processed
+            UPDATE Waiting_List
+            SET status = 'Scheduled'
+            WHERE wl_id = v_wl_id;
+
+            -- Set doctor as busy
+            UPDATE Doctors
+            SET availability_status = 'Busy'
+            WHERE doctor_id = v_doctor_id;
+
+            DBMS_OUTPUT.PUT_LINE('✅ Assigned doctor ' || v_doctor_id || ' to patient ' || v_patient_id);
+
+        EXCEPTION
+            WHEN NO_DATA_FOUND THEN
+                DBMS_OUTPUT.PUT_LINE('❌ No available doctor for specialization: ' || v_specialization);
+        END;
+    END IF;
+END;
+/
+
+
+CREATE OR REPLACE TRIGGER trg_auto_assign_waiting
+AFTER UPDATE OF availability_status ON Doctors
+FOR EACH ROW
+WHEN (NEW.availability_status = 'Available')
+BEGIN
+    Assign_Patient_By_Preference;
+END;
+/
+
+UPDATE Appointment
+SET appointment_status = 'Completed'
+WHERE appointment_id = 1001; -- Example
+
+
+--BEGIN
+ --   Assign_Next_Waiting_Patient(201); -- doctor_id
+--END;
+
+CREATE OR REPLACE PROCEDURE Assign_Next_Waiting_Patient(p_doctor_id IN INT) IS
+    v_patient_id     INT;
+    v_new_appt_id    INT := appointment_seq.NEXTVAL;
+BEGIN
+    -- Get next waiting patient (based on creation time)
+    SELECT patient_id INTO v_patient_id
+    FROM Waiting_List
+    WHERE status = 'Waiting'
+    ORDER BY created_at
+    FETCH FIRST 1 ROWS ONLY;
+
+    -- Insert into Appointment
+    INSERT INTO Appointment (
+        appointment_id, patient_id, doctor_id,
+        booking_date, appointment_date, appointment_time,
+        appointment_status, problem_description, booking_type
+    )
+    VALUES (
+        v_new_appt_id, v_patient_id, p_doctor_id,
+        SYSDATE, SYSDATE, '10:00 AM',
+        'Scheduled', 'Auto-assigned from waitlist', 'Walk-in'
+    );
+
+    -- Mark waiting list as assigned
+    UPDATE Waiting_List
+    SET status = 'Assigned'
+    WHERE patient_id = v_patient_id;
+
+    -- Update doctor availability
+    UPDATE Doctors
+    SET availability_status = 'Busy'
+    WHERE doctor_id = p_doctor_id;
+
+    DBMS_OUTPUT.PUT_LINE('✅ Patient ' || v_patient_id || ' assigned to Doctor ' || p_doctor_id);
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        DBMS_OUTPUT.PUT_LINE('❌ No waiting patients found.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('❌ Error: ' || SQLERRM);
+END;
+/
+
+--- Generate_Monthly_Report
+CREATE OR REPLACE PROCEDURE Generate_Monthly_Report (
+    p_month IN VARCHAR2  -- Format: 'YYYY-MM'
+)
+IS
+    v_total_bills       NUMBER := 0;
+    v_service_total     NUMBER := 0;
+    v_medicine_total    NUMBER := 0;
+    v_room_total        NUMBER := 0;
+    v_doctor_fee_total  NUMBER := 0;
+    v_total_revenue     NUMBER := 0;
+BEGIN
+    -- Total bills
+    SELECT COUNT(*) INTO v_total_bills
+    FROM Billing
+    WHERE TO_CHAR(bill_date, 'YYYY-MM') = p_month;
+
+    -- Total service charges
+    SELECT NVL(SUM(bd.amount), 0) INTO v_service_total
+    FROM Billing b
+    JOIN Billing_Details bd ON b.bill_id = bd.bill_id
+    WHERE TO_CHAR(b.bill_date, 'YYYY-MM') = p_month;
+
+    -- Total medicine charges
+    SELECT NVL(SUM(mb.amount), 0) INTO v_medicine_total
+    FROM Billing b
+    JOIN Medicine_Billing mb ON b.bill_id = mb.bill_id
+    WHERE TO_CHAR(b.bill_date, 'YYYY-MM') = p_month;
+
+    -- Total room charges
+    SELECT NVL(SUM(r.room_charge * (ra.discharge_date - ra.assign_date)), 0)
+    INTO v_room_total
+    FROM Room_Assignment ra
+    JOIN Room r ON ra.room_id = r.room_id
+    JOIN Appointment a ON ra.appointment_id = a.appointment_id
+    JOIN Billing b ON a.appointment_id = b.appointment_id
+    WHERE TO_CHAR(b.bill_date, 'YYYY-MM') = p_month
+      AND ra.discharge_date IS NOT NULL;
+
+    -- Total doctor fees
+    SELECT NVL(SUM(d.consultation_fees), 0) INTO v_doctor_fee_total
+    FROM Billing b
+    JOIN Appointment a ON b.appointment_id = a.appointment_id
+    JOIN Doctors d ON a.doctor_id = d.doctor_id
+    WHERE TO_CHAR(b.bill_date, 'YYYY-MM') = p_month;
+
+    -- Total Revenue
+    v_total_revenue := v_service_total + v_medicine_total + v_room_total + v_doctor_fee_total;
+
+    -- Output the report
+    DBMS_OUTPUT.PUT_LINE('📅 Monthly Report for: ' || p_month);
+    DBMS_OUTPUT.PUT_LINE('-----------------------------------------');
+    DBMS_OUTPUT.PUT_LINE('🧾 Total Bills         : ' || v_total_bills);
+    DBMS_OUTPUT.PUT_LINE('🛠️ Services Revenue    : ₹' || v_service_total);
+    DBMS_OUTPUT.PUT_LINE('💊 Medicines Revenue   : ₹' || v_medicine_total);
+    DBMS_OUTPUT.PUT_LINE('🛏️ Room Charges        : ₹' || v_room_total);
+    DBMS_OUTPUT.PUT_LINE('👨‍⚕️ Doctor Fees        : ₹' || v_doctor_fee_total);
+    DBMS_OUTPUT.PUT_LINE('💰 Total Revenue       : ₹' || v_total_revenue);
+    DBMS_OUTPUT.PUT_LINE('-----------------------------------------');
+END;
+/
+--BEGIN
+  --  Generate_Monthly_Report('2025-07');
+--END;
+--/
+--Doctor_Performance_View
+CREATE OR REPLACE VIEW Doctor_Performance_View AS
+SELECT
+    d.doctor_id,
+    d.full_name AS doctor_name,
+    d.specialization,
+    COUNT(a.appointment_id) AS total_appointments,
+    NVL(SUM(d.consultation_fees), 0) AS total_revenue
+FROM Doctors d
+LEFT JOIN Appointment a ON d.doctor_id = a.doctor_id
+LEFT JOIN Billing b ON a.appointment_id = b.appointment_id
+GROUP BY d.doctor_id, d.full_name, d.specialization;
+
+
+
+
+
+
+
+
+
+
+
  
 
