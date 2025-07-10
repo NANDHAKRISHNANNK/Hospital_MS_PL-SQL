@@ -1261,3 +1261,137 @@ BEGIN
     Auto_Assign_Room(1022);  -- or any other appointment_id
 END;
 /
+
+BEGIN
+   Generate_Monthly_Report('2025-07');
+END;
+--insert patient
+BEGIN
+    insert_patient('Santhosh', 28, '9876543110', 'A+', 'Male', 
+    'sandy@example.com', 'Chennai', 
+    'Outpatient', 'santhoshh', 'sand123',
+     'cold');
+     end;
+
+--insert doctor 
+CREATE SEQUENCE department_seq 
+START WITH 1 INCREMENT BY 1;
+CREATE OR REPLACE PROCEDURE insert_department (
+    p_name IN VARCHAR2,
+    p_head IN VARCHAR2
+)
+IS
+    v_new_id INT := department_seq.NEXTVAL;
+BEGIN
+    INSERT INTO Departments (
+        department_id, department_name, department_head
+    ) VALUES (
+        v_new_id, p_name, p_head
+    );
+
+    DBMS_OUTPUT.PUT_LINE('✅ Department inserted with ID: ' || v_new_id);
+END;
+/
+truncate table Departments;
+BEGIN
+    insert_department('general', 'Dr. Suresh Kumar');
+    
+END;
+/
+--insert doctor
+BEGIN
+    insert_doctor(
+        p_name => 'Dr. Suresh Kumar',
+        p_age => 40,
+        p_mobile => '9876541210',
+        p_qualification => 'MD Cardiology',
+        p_gender => 'Male',
+        p_email => 'Dr. Suresh Kumarcom@gmail.com',
+        p_specialization => 'General',
+        p_experience => 25,
+        p_department_id => 21,
+        p_username => 'dr_suru',
+        p_password_raw => 'suru@007',
+        p_shift => 'Morning',
+        p_fees => 1000,
+        p_status => 'Available'
+    );
+    end;
+
+--insert staff
+BEGIN
+    insert_staff(
+        p_name => 'Naveen',
+        p_age => 35,
+        p_mobile => '9836001234',
+        p_gender => 'Male',
+        p_role => 'Receptionist',
+        p_salary => 25000,
+        p_username => 'naveenver',
+        p_password_raw => 'naveen@123',
+        p_dept_id => 1
+    );end;
+
+
+BEGIN
+    Create_Auto_Appointment(201, 'General', SYSDATE, '10:00');
+END;
+/
+--auto assign 
+BEGIN
+    Auto_Assign_Room(1061);
+END;
+/
+--billing
+
+INSERT INTO Billing VALUES
+ (126, 1061, SYSDATE, 0, 0, 0, 'Pending');
+--billing details 
+
+INSERT INTO Billing_Details (bill_detail_id, bill_id, service_id, quantity, amount, service_date)
+VALUES (4, 126, 1, 3, 1500, SYSDATE);
+
+--medical billing
+INSERT INTO Medicine_Billing VALUES 
+(4, 126, 1, 10, 1000);
+--total_bill
+begin 
+    UPDATE_TOTAL_BILL_AMOUNT(126);
+    end;
+--paybill
+-- Create the procedure
+CREATE OR REPLACE PROCEDURE pay_bill (
+    p_bill_id      IN INT,
+    p_payment_amt  IN DECIMAL
+)
+IS
+    v_paid_amount   DECIMAL(10,2);
+    v_total_amount  DECIMAL(10,2);
+    v_new_paid      DECIMAL(10,2);
+    v_new_due       DECIMAL(10,2);
+BEGIN
+    SELECT paid_amount, total_amount INTO v_paid_amount, v_total_amount
+    FROM Billing WHERE bill_id = p_bill_id;
+
+    v_new_paid := v_paid_amount + p_payment_amt;
+    v_new_due := v_total_amount - v_new_paid;
+
+    UPDATE Billing
+    SET paid_amount = v_new_paid,
+        due_amount = v_new_due,
+        payment_status = CASE 
+                            WHEN v_new_due = 0 THEN 'Paid'
+                            ELSE 'Pending'
+                         END
+    WHERE bill_id = p_bill_id;
+
+    DBMS_OUTPUT.PUT_LINE('✅ Payment recorded. Paid: ' || v_new_paid || ', Due: ' || v_new_due);
+END;
+/
+
+BEGIN
+    pay_bill(126, -5000);
+END;
+BEGIN
+  Generate_Monthly_Report('2025-07');
+END;
