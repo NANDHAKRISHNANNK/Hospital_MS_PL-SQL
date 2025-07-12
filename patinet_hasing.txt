@@ -1,0 +1,34 @@
+CREATE OR REPLACE PROCEDURE insert_patient(
+    p_name          IN VARCHAR2,
+    p_age           IN INT,
+    p_mobile        IN VARCHAR2,
+    p_blood_group   IN VARCHAR2,
+    p_gender        IN VARCHAR2,
+    p_email         IN VARCHAR2,
+    p_address       IN VARCHAR2,
+    p_type          IN VARCHAR2,
+    p_username      IN VARCHAR2,
+    p_password_raw  IN VARCHAR2,
+    p_history       IN VARCHAR2
+)
+IS
+    v_patient_id     INT := patient_seq.NEXTVAL;
+    v_hashed_password RAW(256);
+BEGIN
+    -- 3 is the constant for SHA-256
+    v_hashed_password := DBMS_CRYPTO.HASH(
+        UTL_I18N.STRING_TO_RAW(p_password_raw, 'AL32UTF8'),
+        3  -- SHA-256
+    );
+
+    INSERT INTO Patients (
+        patient_id, full_name, age, mobile, blood_group, gender,
+        email, address, patient_type, pt_username, pt_password, patient_history
+    ) VALUES (
+        v_patient_id, p_name, p_age, p_mobile, p_blood_group, p_gender,
+        p_email, p_address, p_type, p_username, RAWTOHEX(v_hashed_password), p_history
+    );
+
+    DBMS_OUTPUT.PUT_LINE('✅ Patient inserted with hashed password. ID: ' || v_patient_id);
+END;
+/
