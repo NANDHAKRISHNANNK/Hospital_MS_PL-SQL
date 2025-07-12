@@ -97,7 +97,7 @@ BEGIN
         v_dept_id, p_name, p_head
     );
  
-    DBMS_OUTPUT.PUT_LINE('✅ Department inserted. ID: ' || v_dept_id);
+    DBMS_OUTPUT.PUT_LINE(' Department inserted. ID: ' || v_dept_id);
 END;
 /
 --insert_department data 
@@ -121,10 +121,17 @@ CREATE TABLE Doctors (
     doctor_id           INT PRIMARY KEY,  
     full_name           VARCHAR2(100) NOT NULL,  
     age                 INT CHECK (age BETWEEN 25 AND 80) NOT NULL,  
-    mobile              VARCHAR2(20) NOT NULL CHECK (REGEXP_LIKE(mobile, '^[6-9][0-9]{9}$')),  
+    mobile              VARCHAR2(20) NOT NULLCHECK (REGEXP_LIKE(mobile, '^(\+91)?[6-9][0-9]{9}$')),,  
     qualification       VARCHAR2(100) NOT NULL,  
     gender              VARCHAR2(10) NOT NULL CHECK (gender IN ('Male', 'Female', 'Other')),  
-    email               VARCHAR2(100) NOT NULL CHECK (REGEXP_LIKE(email, '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')),  
+    email               VARCHAR2(100) NOT NULL CHECK (
+  REGEXP_LIKE(
+    email,
+    '^' ||                  -- Start of string
+    '[A-Za-z0-9._%+-]+' ||  -- Local part: one or more letters, digits, dot, underscore, percent, plus, hyphen
+    '@gmail\.com$'          -- Must end with '@gmail.com' (escaped dot)
+  )
+),  
     specialization      VARCHAR2(100) NOT NULL,  
     experience          INT NOT NULL CHECK (experience >= 0),  
     department_id       INT NOT NULL,  
@@ -166,7 +173,7 @@ BEGIN
         p_password_raw, p_shift, p_fees, p_status  
     );  
   
-    DBMS_OUTPUT.PUT_LINE('✅ Doctor inserted successfully with ID: ' || v_new_id);  
+    DBMS_OUTPUT.PUT_LINE('Doctor inserted successfully with ID: ' || v_new_id);  
 END;
 /
 
@@ -196,9 +203,7 @@ END;
 --seq_appointment
 CREATE SEQUENCE appointment_seq
     START WITH 1001
-    INCREMENT BY 1
-    NOCACHE
-    NOCYCLE;
+    INCREMENT BY 1;
 -- create appointment table 
 CREATE TABLE Appointment (
     appointment_id       INT PRIMARY KEY,
@@ -206,6 +211,7 @@ CREATE TABLE Appointment (
     doctor_id            INT NOT NULL,
     booking_date         DATE DEFAULT SYSDATE NOT NULL,
     appointment_date     DATE NOT NULL,
+ PRIORITY_LEVEL VARCHAR2(20) CHECK (PRIORITY_LEVEL IN ('REGULAR', 'EMERGENCY')),
     appointment_time     VARCHAR2(20) NOT NULL
         CHECK (REGEXP_LIKE(appointment_time, '^(0[1-9]|1[0-2]):[0-5][0-9] (AM|PM)$')),
     appointment_status   VARCHAR2(20) NOT NULL
@@ -250,7 +256,7 @@ BEGIN
         v_room_id, p_room_number, p_room_type, p_room_status, p_room_charge, p_appointment_id
     );
  
-    DBMS_OUTPUT.PUT_LINE('✅ Room inserted with ID: ' || v_room_id);
+    DBMS_OUTPUT.PUT_LINE(' Room inserted with ID: ' || v_room_id);
 END;
 /
 --insert room
@@ -267,8 +273,7 @@ END;
 CREATE SEQUENCE login_audit_seq
 START WITH 1
 INCREMENT BY 1
-NOCACHE
-NOCYCLE;
+;
 --create table login
 CREATE TABLE Login_Audit (  
     log_id        INT PRIMARY KEY,  
@@ -298,12 +303,19 @@ CREATE TABLE Staffs (
     staff_id         INT PRIMARY KEY,
     full_name        VARCHAR2(100) NOT NULL,
     age              INT NOT NULL,
-    mobile           VARCHAR2(20) NOT NULL,
+    mobile           VARCHAR2(20)  NOT NULL CHECK (REGEXP_LIKE(mobile, '^(\+91)?[6-9][0-9]{9}$')),,
     gender           VARCHAR2(10) CHECK (gender IN ('Male', 'Female', 'Other')) NOT NULL,
-    staff_role       VARCHAR2(50) CHECK (staff_role IN ('Receptionist', 'Nurse', 'Lab Assistant', 'Admin')) NOT NULL,
+    staff_role       VARCHAR2(50) CHECK (staff_role IN ('Receptionist', 'Nurse', 'Lab Assistant', 'Admin', 'Pharmacist')) NOT NULL,
     salary           DECIMAL(10,2) NOT NULL,
-    staff_username   VARCHAR2(50) UNIQUE NOT NULL,
-    staff_password   VARCHAR2(64) NOT NULL,  -- Store hashed password in future
+    staff_username   VARCHAR2(50) UNIQUE NOT NULL ,
+    staff_password   VARCHAR2(64) NOT NULL CHECK (
+        LENGTH(password) BETWEEN 8 AND 20 AND
+        REGEXP_LIKE(password, '.*[A-Z].*') AND       -- At least one uppercase
+        REGEXP_LIKE(password, '.*[a-z].*') AND       -- At least one lowercase
+        REGEXP_LIKE(password, '.*[0-9].*') AND       -- At least one digit
+        REGEXP_LIKE(password, '.*[!@#$%^&*()].*')    -- At least one special char
+    )
+ ,  
     department_id    INT NOT NULL,
  
     FOREIGN KEY (department_id) REFERENCES Departments(department_id)
@@ -333,7 +345,7 @@ BEGIN
         p_salary, p_username, p_password_raw, p_dept_id
     );
  
-    DBMS_OUTPUT.PUT_LINE('✅ Staff inserted with ID: ' || new_id);
+    DBMS_OUTPUT.PUT_LINE(' Staff inserted with ID: ' || new_id);
 END;
 /
 ---staff insert
@@ -363,7 +375,7 @@ FOR EACH ROW
 BEGIN  
     IF :NEW.quantity < 10 THEN  
         :NEW.alert_status := 'LOW';  
-        DBMS_OUTPUT.PUT_LINE('⚠️ Low stock: ' || :NEW.item_name || ' — only ' || :NEW.quantity || ' left.');  
+        DBMS_OUTPUT.PUT_LINE('Low stock: ' || :NEW.item_name || ' — only ' || :NEW.quantity || ' left.');  
     ELSE  
         :NEW.alert_status := 'OK';  
     END IF;  
@@ -387,7 +399,7 @@ BEGIN
     ) VALUES (
         v_id, p_name, p_type, p_quantity, p_price, p_expiry
     );
-    DBMS_OUTPUT.PUT_LINE('✅ Inventory item inserted. ID: ' || v_id);
+    DBMS_OUTPUT.PUT_LINE(' Inventory item inserted. ID: ' || v_id);
 END;
 /
 --insert inventory
@@ -404,8 +416,7 @@ END;
 CREATE SEQUENCE service_seq
     START WITH 1
     INCREMENT BY 1
-    NOCACHE
-    NOCYCLE;
+    ;
 --create service
 CREATE TABLE Services (
     service_id       INT PRIMARY KEY,
@@ -426,7 +437,7 @@ BEGIN
         v_id, p_name, p_charge
     );
  
-    DBMS_OUTPUT.PUT_LINE('✅ Service inserted. ID: ' || v_id);
+    DBMS_OUTPUT.PUT_LINE(' Service inserted. ID: ' || v_id);
 END;
 /
 --insert 
@@ -497,7 +508,7 @@ BEGIN
  
     -- Prevent overpayment
     IF v_new_paid > v_total_amount THEN
-        DBMS_OUTPUT.PUT_LINE('❌ Payment exceeds total bill. Transaction cancelled.');
+        DBMS_OUTPUT.PUT_LINE(' Payment exceeds total bill. Transaction cancelled.');
         RETURN;
     END IF;
  
@@ -511,19 +522,19 @@ BEGIN
                          END
     WHERE bill_id = p_bill_id;
  
-    DBMS_OUTPUT.PUT_LINE('✅ Payment recorded. Paid: ₹' || v_new_paid || ', Due: ₹' || v_new_due);
+    DBMS_OUTPUT.PUT_LINE(' Payment recorded. Paid: ₹' || v_new_paid || ', Due: ₹' || v_new_due);
  
 EXCEPTION
     WHEN NO_DATA_FOUND THEN
-        DBMS_OUTPUT.PUT_LINE('❌ Error: Bill ID ' || p_bill_id || ' not found.');
+        DBMS_OUTPUT.PUT_LINE(' Error: Bill ID ' || p_bill_id || ' not found.');
     WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('❌ Error: ' || SQLERRM);
+        DBMS_OUTPUT.PUT_LINE(' Error: ' || SQLERRM);
 END;
 --seqence billing
 CREATE SEQUENCE billing_detail_seq
 START WITH 1
 INCREMENT BY 1
-NOCACHE;
+;
 --update billing
 CREATE OR REPLACE PROCEDURE update_total_bill_amount (
     p_bill_id IN INT
