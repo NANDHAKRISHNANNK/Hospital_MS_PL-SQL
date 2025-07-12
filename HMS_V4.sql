@@ -8,13 +8,30 @@ CREATE TABLE Patients (
     full_name         VARCHAR2(100) NOT NULL,
     age               INT NOT NULL CHECK (age > 0),
     mobile            VARCHAR2(20) NOT NULL CHECK (REGEXP_LIKE(mobile, '^(\+91)?[6-9][0-9]{9}$')),
-    blood_group       VARCHAR2(10) NOT NULL,
+    blood_group       VARCHAR2(10) NOT NULL CHECK (blood_group IN ('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-')),
     gender            VARCHAR2(10) NOT NULL CHECK (gender IN ('Male', 'Female', 'Other')),
-    email             VARCHAR2(100) NOT NULL,
+    email             VARCHAR2(100) CHECK (
+  REGEXP_LIKE(
+    email,
+    '^' ||                  -- Start of string
+    '[A-Za-z0-9._%+-]+' ||  -- Local part: one or more letters, digits, dot, underscore, percent, plus, hyphen
+    '@gmail\.com$'          -- Must end with '@gmail.com' (escaped dot)
+  )
+),
     address           VARCHAR2(100) NOT NULL,
     patient_type      VARCHAR2(20) NOT NULL CHECK (patient_type IN ('Inpatient', 'Outpatient')),
-    pt_username       VARCHAR2(50) UNIQUE NOT NULL,
-    pt_password       VARCHAR2(100) NOT NULL,
+    pt_username       VARCHAR2(50) UNIQUE NOT NULL CHECK (
+  REGEXP_LIKE(
+    username, '^[A-Za-z]+$'           -- Entire string must be only letters from start (^) to end ($)
+  )
+) ,
+    pt_password       VARCHAR2(100) NOT NULL CHECK (
+        LENGTH(password) BETWEEN 8 AND 20 AND
+        REGEXP_LIKE(password, '.*[A-Z].*') AND       -- At least one uppercase
+        REGEXP_LIKE(password, '.*[a-z].*') AND       -- At least one lowercase
+        REGEXP_LIKE(password, '.*[0-9].*') AND       -- At least one digit
+        REGEXP_LIKE(password, '.*[!@#$%^&*()].*')    -- At least one special char
+    ),
     patient_history   VARCHAR2(500)
 );
  --patient prodecure
