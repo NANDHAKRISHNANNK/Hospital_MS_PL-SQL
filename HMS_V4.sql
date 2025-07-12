@@ -486,50 +486,8 @@ CREATE TABLE Medicine_Billing (
     FOREIGN KEY (item_id) REFERENCES Inventory(item_id)
 );
 
-CREATE OR REPLACE PROCEDURE pay_bill (
-    p_bill_id      IN INT,
-    p_payment_amt  IN DECIMAL
-)
-IS
-    v_paid_amount   DECIMAL(10,2);
-    v_total_amount  DECIMAL(10,2);
-    v_new_paid      DECIMAL(10,2);
-    v_new_due       DECIMAL(10,2);
-BEGIN
-    -- Check if bill exists
-    SELECT paid_amount, total_amount 
-    INTO v_paid_amount, v_total_amount
-    FROM Billing 
-    WHERE bill_id = p_bill_id;
- 
-    -- Calculate new paid and due
-    v_new_paid := v_paid_amount + p_payment_amt;
-    v_new_due := v_total_amount - v_new_paid;
- 
-    -- Prevent overpayment
-    IF v_new_paid > v_total_amount THEN
-        DBMS_OUTPUT.PUT_LINE(' Payment exceeds total bill. Transaction cancelled.');
-        RETURN;
-    END IF;
- 
-    -- Update billing
-    UPDATE Billing
-    SET paid_amount = v_new_paid,
-        due_amount = v_new_due,
-        payment_status = CASE 
-                            WHEN v_new_due = 0 THEN 'Paid'
-                            ELSE 'Pending'
-                         END
-    WHERE bill_id = p_bill_id;
- 
-    DBMS_OUTPUT.PUT_LINE(' Payment recorded. Paid: ₹' || v_new_paid || ', Due: ₹' || v_new_due);
- 
-EXCEPTION
-    WHEN NO_DATA_FOUND THEN
-        DBMS_OUTPUT.PUT_LINE(' Error: Bill ID ' || p_bill_id || ' not found.');
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE(' Error: ' || SQLERRM);
-END;
+
+
 --seqence billing
 CREATE SEQUENCE billing_detail_seq
 START WITH 1
@@ -596,7 +554,7 @@ BEGIN
         due_amount = v_total
     WHERE bill_id = p_bill_id;
  
-    DBMS_OUTPUT.PUT_LINE('✅ Final Bill: ₹' || v_total || 
+    DBMS_OUTPUT.PUT_LINE(' Final Bill: ₹' || v_total || 
                          ' (Room ₹' || v_room_charge || 
                          ', Doctor ₹' || v_doctor_fee || 
                          ', Services ₹' || v_service_total || 
@@ -617,7 +575,7 @@ IS
 BEGIN
     -- Validate positive payment
     IF p_payment_amt <= 0 THEN
-        RAISE_APPLICATION_ERROR(-20001, '❌ Payment amount must be greater than 0.');
+        RAISE_APPLICATION_ERROR(-20001, ' Payment amount must be greater than 0.');
     END IF;
  
     -- Check if bill exists and get current amounts
@@ -626,7 +584,7 @@ BEGIN
  
     -- Prevent overpayment
     IF (v_paid_amount + p_payment_amt) > v_total_amount THEN
-        RAISE_APPLICATION_ERROR(-20002, '❌ Payment exceeds total bill amount.');
+        RAISE_APPLICATION_ERROR(-20002, ' Payment exceeds total bill amount.');
     END IF;
  
     -- Calculate new values
@@ -643,7 +601,7 @@ BEGIN
                          END
     WHERE bill_id = p_bill_id;
  
-    DBMS_OUTPUT.PUT_LINE('✅ Payment recorded. Paid: ' || v_new_paid || ', Due: ' || v_new_due);
+    DBMS_OUTPUT.PUT_LINE(' Payment recorded. Paid: ' || v_new_paid || ', Due: ' || v_new_due);
 END;
 /
 ---
@@ -791,7 +749,7 @@ SELECT
 FROM dual;
 
 -----------<Cursor due bill identifer>----------------
-SET SERVEROUTPUT ON;
+
 DECLARE
     CURSOR due_bills IS
         SELECT p.full_name, b.total_amount, b.paid_amount, b.due_amount
@@ -879,9 +837,9 @@ BEGIN
         SET room_status = 'Occupied'
         WHERE room_id = v_room_id;
  
-        DBMS_OUTPUT.PUT_LINE('✅ ' || p_room_type || ' room ' || v_room_id || ' assigned to appointment ' || p_appointment_id);
+        DBMS_OUTPUT.PUT_LINE(' ' || p_room_type || ' room ' || v_room_id || ' assigned to appointment ' || p_appointment_id);
     ELSE
-        DBMS_OUTPUT.PUT_LINE('❌ No available room of type: ' || p_room_type);
+        DBMS_OUTPUT.PUT_LINE(' No available room of type: ' || p_room_type);
     END IF;
 END;
 /
@@ -917,19 +875,19 @@ BEGIN
         rows_updated := SQL%ROWCOUNT;
 
     ELSE
-        DBMS_OUTPUT.PUT_LINE('❌ Invalid user type. Use Doctor, Staff, or Patient.');
+        DBMS_OUTPUT.PUT_LINE(' Invalid user type. Use Doctor, Staff, or Patient.');
         RETURN;
     END IF;
 
     IF rows_updated = 0 THEN
-        DBMS_OUTPUT.PUT_LINE('❌ No such user found: ' || p_username);
+        DBMS_OUTPUT.PUT_LINE(' No such user found: ' || p_username);
     ELSE
-        DBMS_OUTPUT.PUT_LINE('✅ Password updated for ' || p_user_type || ' : ' || p_username);
+        DBMS_OUTPUT.PUT_LINE(' Password updated for ' || p_user_type || ' : ' || p_username);
     END IF;
 
 EXCEPTION
     WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('❌ Error: ' || SQLERRM);
+        DBMS_OUTPUT.PUT_LINE(' Error: ' || SQLERRM);
 END;
 /
 --BEGIN
@@ -947,7 +905,7 @@ BEGIN
  
     -- Check if already discharged
     IF v_discharge_date IS NOT NULL THEN
-        DBMS_OUTPUT.PUT_LINE('⚠️ Patient already discharged. Room: ' || v_room_id);
+        DBMS_OUTPUT.PUT_LINE(' Patient already discharged. Room: ' || v_room_id);
         RETURN;
     END IF;
  
@@ -961,12 +919,12 @@ BEGIN
     SET room_status = 'Available'
     WHERE room_id = v_room_id;
  
-    DBMS_OUTPUT.PUT_LINE('✅ Patient discharged and room ' || v_room_id || ' is now available.');
+    DBMS_OUTPUT.PUT_LINE(' Patient discharged and room ' || v_room_id || ' is now available.');
 EXCEPTION
     WHEN NO_DATA_FOUND THEN
-        DBMS_OUTPUT.PUT_LINE('❌ No room assignment found for appointment ID: ' || p_appointment_id);
+        DBMS_OUTPUT.PUT_LINE(' No room assignment found for appointment ID: ' || p_appointment_id);
     WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('❌ Error: ' || SQLERRM);
+        DBMS_OUTPUT.PUT_LINE(' Error: ' || SQLERRM);
 END;
 /
 --BEGIN
@@ -1009,14 +967,14 @@ BEGIN
         WHERE staff_username = p_username AND staff_password = p_password;  
   
     ELSE  
-        DBMS_OUTPUT.PUT_LINE('❌ Invalid user type');  
+        DBMS_OUTPUT.PUT_LINE(' Invalid user type');  
         RETURN;  
     END IF;  
   
     -- Determine login status  
     IF v_count > 0 THEN  
         v_status := 'Success';  
-        DBMS_OUTPUT.PUT_LINE('✅ Login successful');  
+        DBMS_OUTPUT.PUT_LINE(' Login successful');  
         
         -- Show appropriate dashboard data
         IF UPPER(p_user_type) = 'PATIENT' THEN  
@@ -1043,7 +1001,7 @@ BEGIN
   
     ELSE  
         v_status := 'Failed';  
-        DBMS_OUTPUT.PUT_LINE('❌ Invalid username or password');  
+        DBMS_OUTPUT.PUT_LINE(' Invalid username or password');  
     END IF;  
   
     -- Insert audit log  
@@ -1055,7 +1013,7 @@ BEGIN
   
 EXCEPTION  
     WHEN OTHERS THEN  
-        DBMS_OUTPUT.PUT_LINE('❌ Error: ' || SQLERRM);  
+        DBMS_OUTPUT.PUT_LINE(' Error: ' || SQLERRM);  
         INSERT INTO Login_Audit (  
             log_id, user_type, username, login_time, status  
         ) VALUES (  
@@ -1114,19 +1072,19 @@ BEGIN
     WHERE bill_id = v_bill_id;
  
     -- Print breakdown
-    DBMS_OUTPUT.PUT_LINE('🧾 Final Bill Generated');
-    DBMS_OUTPUT.PUT_LINE('💊 Medicine  : ₹' || v_medicine_total);
-    DBMS_OUTPUT.PUT_LINE('🛠️ Services : ₹' || v_service_total);
-    DBMS_OUTPUT.PUT_LINE('🛏️ Room      : ₹' || v_room_total);
-    DBMS_OUTPUT.PUT_LINE('👨‍⚕️ Doctor    : ₹' || v_doctor_fee);
-    DBMS_OUTPUT.PUT_LINE('💰 Total     : ₹' || v_total);
-    DBMS_OUTPUT.PUT_LINE('💸 Paid      : ₹' || v_paid || ' | Due: ₹' || (v_total - v_paid));
+    DBMS_OUTPUT.PUT_LINE(' Final Bill Generated');
+    DBMS_OUTPUT.PUT_LINE(' Medicine  : ₹' || v_medicine_total);
+    DBMS_OUTPUT.PUT_LINE(' Services : ₹' || v_service_total);
+    DBMS_OUTPUT.PUT_LINE(' Room      : ₹' || v_room_total);
+    DBMS_OUTPUT.PUT_LINE(' Doctor    : ₹' || v_doctor_fee);
+    DBMS_OUTPUT.PUT_LINE(' Total     : ₹' || v_total);
+    DBMS_OUTPUT.PUT_LINE(' Paid      : ₹' || v_paid || ' | Due: ₹' || (v_total - v_paid));
  
 EXCEPTION
     WHEN NO_DATA_FOUND THEN
-        DBMS_OUTPUT.PUT_LINE('❌ Billing record not found for appointment ID: ' || p_appointment_id);
+        DBMS_OUTPUT.PUT_LINE(' Billing record not found for appointment ID: ' || p_appointment_id);
     WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('❌ Error: ' || SQLERRM);
+        DBMS_OUTPUT.PUT_LINE(' Error: ' || SQLERRM);
 END;
 /
 ---BEGIN
@@ -1265,7 +1223,7 @@ BEGIN
         SET availability_status = 'Busy'
         WHERE doctor_id = v_doctor_id;
 
-        DBMS_OUTPUT.PUT_LINE('✅ Appointment created with Doctor ID: ' || v_doctor_id);
+        DBMS_OUTPUT.PUT_LINE(' Appointment created with Doctor ID: ' || v_doctor_id);
     ELSE
         -- Insert into waiting list
         INSERT INTO Waiting_List (
@@ -1345,11 +1303,11 @@ BEGIN
             SET availability_status = 'Busy'
             WHERE doctor_id = v_doctor_id;
 
-            DBMS_OUTPUT.PUT_LINE('✅ Assigned doctor ' || v_doctor_id || ' to patient ' || v_patient_id);
+            DBMS_OUTPUT.PUT_LINE('Assigned doctor ' || v_doctor_id || ' to patient ' || v_patient_id);
 
         EXCEPTION
             WHEN NO_DATA_FOUND THEN
-                DBMS_OUTPUT.PUT_LINE('❌ No available doctor for specialization: ' || v_specialization);
+                DBMS_OUTPUT.PUT_LINE(' No available doctor for specialization: ' || v_specialization);
         END;
     END IF;
 END;
@@ -1407,12 +1365,12 @@ BEGIN
     SET availability_status = 'Busy'
     WHERE doctor_id = p_doctor_id;
 
-    DBMS_OUTPUT.PUT_LINE('✅ Patient ' || v_patient_id || ' assigned to Doctor ' || p_doctor_id);
+    DBMS_OUTPUT.PUT_LINE(' Patient ' || v_patient_id || ' assigned to Doctor ' || p_doctor_id);
 EXCEPTION
     WHEN NO_DATA_FOUND THEN
-        DBMS_OUTPUT.PUT_LINE('❌ No waiting patients found.');
+        DBMS_OUTPUT.PUT_LINE(' No waiting patients found.');
     WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('❌ Error: ' || SQLERRM);
+        DBMS_OUTPUT.PUT_LINE(' Error: ' || SQLERRM);
 END;
 /
 
@@ -1466,14 +1424,14 @@ BEGIN
     v_total_revenue := v_service_total + v_medicine_total + v_room_total + v_doctor_fee_total;
 
     -- Output the report
-    DBMS_OUTPUT.PUT_LINE('📅 Monthly Report for: ' || p_month);
+    DBMS_OUTPUT.PUT_LINE(' Monthly Report for: ' || p_month);
     DBMS_OUTPUT.PUT_LINE('-----------------------------------------');
-    DBMS_OUTPUT.PUT_LINE('🧾 Total Bills         : ' || v_total_bills);
-    DBMS_OUTPUT.PUT_LINE('🛠️ Services Revenue    : ₹' || v_service_total);
-    DBMS_OUTPUT.PUT_LINE('💊 Medicines Revenue   : ₹' || v_medicine_total);
-    DBMS_OUTPUT.PUT_LINE('🛏️ Room Charges        : ₹' || v_room_total);
-    DBMS_OUTPUT.PUT_LINE('👨‍⚕️ Doctor Fees        : ₹' || v_doctor_fee_total);
-    DBMS_OUTPUT.PUT_LINE('💰 Total Revenue       : ₹' || v_total_revenue);
+    DBMS_OUTPUT.PUT_LINE(' Total Bills         : ' || v_total_bills);
+    DBMS_OUTPUT.PUT_LINE(' Services Revenue    : ₹' || v_service_total);
+    DBMS_OUTPUT.PUT_LINE(' Medicines Revenue   : ₹' || v_medicine_total);
+    DBMS_OUTPUT.PUT_LINE(' Room Charges        : ₹' || v_room_total);
+    DBMS_OUTPUT.PUT_LINE(' Doctor Fees        : ₹' || v_doctor_fee_total);
+    DBMS_OUTPUT.PUT_LINE(' Total Revenue       : ₹' || v_total_revenue);
     DBMS_OUTPUT.PUT_LINE('-----------------------------------------');
 END;
 /
