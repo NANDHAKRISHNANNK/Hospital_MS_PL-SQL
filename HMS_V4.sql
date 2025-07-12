@@ -47,7 +47,7 @@ CREATE TABLE Patients (
     p_type          IN VARCHAR2,
     p_username      IN VARCHAR2,
     p_password_raw  IN VARCHAR2,
-    p_history       IN VARCHAR2  -- updated from CLOB to VARCHAR2
+    p_history       IN VARCHAR2 
 )
 IS
     v_patient_id  INT := patient_seq.NEXTVAL;
