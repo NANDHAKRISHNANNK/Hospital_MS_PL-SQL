@@ -7,6 +7,7 @@ CREATE TABLE Patients (
     patient_id        INT PRIMARY KEY,
     full_name         VARCHAR2(100) NOT NULL,
     age               INT NOT NULL CHECK (age > 0),
+ -- Constraint to validate Indian mobile number format
     mobile            VARCHAR2(20) NOT NULL CHECK (REGEXP_LIKE(mobile, '^(\+91)?[6-9][0-9]{9}$')),
     blood_group       VARCHAR2(10) NOT NULL CHECK (blood_group IN ('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-')),
     gender            VARCHAR2(10) NOT NULL CHECK (gender IN ('Male', 'Female', 'Other')),
