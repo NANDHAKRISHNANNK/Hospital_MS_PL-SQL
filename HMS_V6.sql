@@ -1195,15 +1195,7 @@ BEGIN
         WHERE doctor_id = v_doctor_id;
 
         DBMS_OUTPUT.PUT_LINE(' Appointment created with Doctor ID: ' || v_doctor_id);
-    ELSE
-        -- Insert into waiting list
-        INSERT INTO Waiting_List (
-            patient_id, specialization, preferred_doctor, status, created_at
-        ) VALUES (
-            p_patient_id, p_specialization, p_preferred_doctor, 'Waiting', SYSTIMESTAMP
-        );
-
-        DBMS_OUTPUT.PUT_LINE(' No doctor available now. Added to waiting list.');
+   
     END IF;
      END;
 
