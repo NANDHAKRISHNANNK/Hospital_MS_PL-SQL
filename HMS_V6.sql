@@ -1,5 +1,10 @@
 CREATE SEQUENCE patient_seq 
-START WITH 1 INCREMENT BY 1;
+START WITH 1 INCREMENT BY 1
+    NOCACHE  
+    NOCYCLE;
+
+--Create Patient table
+
 CREATE TABLE Patients (
     patient_id        INT PRIMARY KEY,
     full_name         VARCHAR2(100) NOT NULL,
@@ -22,14 +27,15 @@ CREATE TABLE Patients (
         patient_type IN ('Inpatient', 'Outpatient')
     ),
     pt_username       VARCHAR2(50) UNIQUE NOT NULL CHECK (
-        REGEXP_LIKE(pt_username, '^[A-Za-z]+$')
-    ),
+    (REGEXP_LIKE(pt_username, '^[A-Za-z][A-Za-z0-9_]{4,49}$'))
+        
+    ,
     pt_password       VARCHAR2(100) NOT NULL CHECK (
         LENGTH(pt_password) BETWEEN 8 AND 20 AND
-        REGEXP_LIKE(pt_password, '.*[A-Z].*') AND
-        REGEXP_LIKE(pt_password, '.*[a-z].*') AND
-        REGEXP_LIKE(pt_password, '.*[0-9].*') AND
-        REGEXP_LIKE(pt_password, '.*[!@#$%^&*()].*')
+        REGEXP_LIKE(pt_password, '.*[A-Z].*') AND   -- At least one uppercase
+        REGEXP_LIKE(pt_password, '.*[a-z].*') AND    -- At least one lowercase
+        REGEXP_LIKE(pt_password, '.*[0-9].*') AND     -- At least one digit
+        REGEXP_LIKE(pt_password, '.*[!@#$%^&*()].*')    -- At least one special char
     ),
     patient_history   VARCHAR2(500)
 );
@@ -37,7 +43,10 @@ CREATE TABLE Patients (
 --- sequ department
 CREATE SEQUENCE department_seq
     START WITH 1
-    INCREMENT BY 1;
+    INCREMENT BY 1
+    NOCACHE  
+    NOCYCLE;
+
     --create a department 
  CREATE TABLE Departments (
     department_id     INT PRIMARY KEY,
@@ -59,12 +68,18 @@ CREATE TABLE Doctors (
     mobile              VARCHAR2(20) NOT NULL CHECK (REGEXP_LIKE(mobile, '^[6-9][0-9]{9}$')),  
     qualification       VARCHAR2(100) NOT NULL,  
     gender              VARCHAR2(10) NOT NULL CHECK (gender IN ('Male', 'Female', 'Other')),  
-    email               VARCHAR2(100) NOT NULL CHECK (REGEXP_LIKE(email, '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')),  
+    email               VARCHAR2(100) NOT NULL CHECK ( REGEXP_LIKE(email, '^[A-Za-z0-9._%+-]+@gmail\.com$'),  
     specialization      VARCHAR2(100) NOT NULL,  
     experience          INT NOT NULL CHECK (experience >= 0),  
     department_id       INT NOT NULL,  
     dr_username         VARCHAR2(50) UNIQUE NOT NULL CHECK (REGEXP_LIKE(dr_username, '^[A-Za-z][A-Za-z0-9_]{4,49}$')),  
-    dr_password         VARCHAR2(64) NOT NULL,  
+    dr_password         VARCHAR2(64) NOT NULL CHECK (
+        LENGTH(dr_password) BETWEEN 8 AND 20 AND
+        REGEXP_LIKE(dr_password, '.*[A-Z].*') AND   -- At least one uppercase
+        REGEXP_LIKE(dr_password, '.*[a-z].*') AND    -- At least one lowercase
+        REGEXP_LIKE(dr_password, '.*[0-9].*') AND     -- At least one digit
+        REGEXP_LIKE(dr_password, '.*[!@#$%^&*()].*')    -- At least one special char
+    ),  
     shift               VARCHAR2(10) NOT NULL CHECK (shift IN ('Morning', 'Evening', 'Night')),  
     consultation_fees   DECIMAL(10,2) NOT NULL CHECK (consultation_fees >= 0),  
     availability_status VARCHAR2(20) NOT NULL CHECK (availability_status IN ('Available', 'Busy', 'On Leave')),  
@@ -94,6 +109,13 @@ CREATE TABLE Appointment (
     FOREIGN KEY (patient_id) REFERENCES Patients(patient_id),
     FOREIGN KEY (doctor_id) REFERENCES Doctors(doctor_id)
 );
+
+--room_seq
+CREATE SEQUENCE room_seq
+START WITH 1
+INCREMENT BY 1
+NOCACHE
+NOCYCLE;
 --room
 CREATE TABLE Room (
     room_id          INT PRIMARY KEY,
@@ -105,10 +127,7 @@ CREATE TABLE Room (
  
     FOREIGN KEY (appointment_id) REFERENCES Appointment(appointment_id)
 );
---room_seq
-CREATE SEQUENCE room_seq
-START WITH 1
-INCREMENT BY 1;
+
 --seq login
 CREATE SEQUENCE login_audit_seq
 START WITH 1
@@ -123,6 +142,15 @@ CREATE TABLE Login_Audit (
     login_time    TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,  
     status        VARCHAR2(20) NOT NULL CHECK (status IN ('Success', 'Failed'))  
 );
+
+
+--Room_Assignment Seq
+CREATE SEQUENCE room_assignment_seq
+START WITH 1
+INCREMENT BY 1
+NOCACHE
+NOCYCLE;
+
 --- room assignment
 CREATE TABLE Room_Assignment (  
     assignment_id     INT PRIMARY KEY,  
@@ -138,7 +166,9 @@ CREATE TABLE Room_Assignment (
 );
 --seq staff
 CREATE SEQUENCE staff_seq 
-START WITH 1 INCREMENT BY 1;
+START WITH 1 INCREMENT BY 1
+NOCACHE
+NOCYCLE;
 
 CREATE TABLE Staffs (
     staff_id         INT PRIMARY KEY,
@@ -146,15 +176,25 @@ CREATE TABLE Staffs (
     age              INT NOT NULL,
     mobile           VARCHAR2(20) NOT NULL,
     gender           VARCHAR2(10) CHECK (gender IN ('Male', 'Female', 'Other')) NOT NULL,
-    staff_role       VARCHAR2(50) CHECK (staff_role IN ('Receptionist', 'Nurse', 'Lab Assistant', 'Admin')) NOT NULL,
+    staff_role       VARCHAR2(25) CHECK (staff_role IN ('Receptionist', 'Nurse', 'Lab Assistant', 'Admin', 'Pharmacist')) NOT NULL,
     salary           DECIMAL(10,2) NOT NULL,
-    staff_username   VARCHAR2(50) UNIQUE NOT NULL,
-    staff_password   VARCHAR2(64) NOT NULL,  -- Store hashed password in future
+    staff_username   VARCHAR2(50) UNIQUE NOT NULL CHECK (REGEXP_LIKE(staff_username, '^[A-Za-z][A-Za-z0-9_]{4,49}$')), ,
+    staff_password   VARCHAR2(21) NOT NULL CHECK (
+        LENGTH(staff_password) BETWEEN 8 AND 20 AND
+        REGEXP_LIKE(staff_password, '.*[A-Z].*') AND   -- At least one uppercase
+        REGEXP_LIKE(staff_password, '.*[a-z].*') AND    -- At least one lowercase
+        REGEXP_LIKE(staff_password, '.*[0-9].*') AND     -- At least one digit
+        REGEXP_LIKE(staff_password, '.*[!@#$%^&*()].*')    -- At least one special char
+    ),  
     department_id    INT NOT NULL,
  
     FOREIGN KEY (department_id) REFERENCES Departments(department_id)
 );
-
+--seq inventory
+CREATE SEQUENCE inventory_seq START WITH 1 INCREMENT BY 1
+NOCACHE
+NOCYCLE;
+-- Table Inventory
 CREATE TABLE Inventory (  
     item_id         INT PRIMARY KEY,  
     item_name       VARCHAR2(100) UNIQUE NOT NULL,  
@@ -166,13 +206,22 @@ CREATE TABLE Inventory (
 );
 CREATE SEQUENCE service_seq
     START WITH 1
-    INCREMENT BY 1;
+    INCREMENT BY 1
+    NOCACHE
+    NOCYCLE;
 --create service
 CREATE TABLE Services (
     service_id       INT PRIMARY KEY,
     service_name     VARCHAR2(100) UNIQUE NOT NULL,
     service_charge   DECIMAL(10, 2) NOT NULL
 );
+-- SEQUENCE billing 
+CREATE SEQUENCE billing__seq
+START WITH 1
+INCREMENT BY 1
+NOCACHE
+NOCYCLE;
+-- create billing table 
 CREATE TABLE Billing (
     bill_id           INT PRIMARY KEY,
     appointment_id    INT,
@@ -184,10 +233,12 @@ CREATE TABLE Billing (
  
     FOREIGN KEY (appointment_id) REFERENCES Appointment(appointment_id)
 );
---billing deatils
+-- SEQUENCE billing deatils
 CREATE SEQUENCE billing_detail_seq
 START WITH 1
-INCREMENT BY 1;
+INCREMENT BY 1
+NOCACHE
+NOCYCLE;
 
 CREATE TABLE Billing_Details (
     bill_detail_id    INT PRIMARY KEY,
@@ -202,6 +253,14 @@ CREATE TABLE Billing_Details (
 
 ALTER TABLE Billing_Details
 ADD service_date DATE DEFAULT SYSDATE;
+
+-- SEQUENCE Medicine_Billing
+CREATE SEQUENCE Medicine_Billing_seq
+START WITH 1
+INCREMENT BY 1
+NOCACHE
+NOCYCLE;
+
 CREATE TABLE Medicine_Billing (
     med_bill_id     INT PRIMARY KEY,
     bill_id         INT,
@@ -211,6 +270,14 @@ CREATE TABLE Medicine_Billing (
     FOREIGN KEY (bill_id) REFERENCES Billing(bill_id),
     FOREIGN KEY (item_id) REFERENCES Inventory(item_id)
 );
+
+-- SEQUENCE Discharge_Summary
+CREATE SEQUENCE Discharge_Summary seq
+START WITH 1
+INCREMENT BY 1
+NOCACHE
+NOCYCLE;
+
  CREATE TABLE Discharge_Summary (
     summary_id         INT PRIMARY KEY,
     appointment_id     INT UNIQUE,
@@ -223,7 +290,18 @@ CREATE TABLE Medicine_Billing (
     FOREIGN KEY (appointment_id) REFERENCES Appointment(appointment_id)
 );
 
---views
+----table PATIENT_STAFF
+
+CREATE TABLE PATIENT_STAFF (
+PATIENT_ID INT NOT NULL,
+STAFF_ID INT NOT NULL,
+PRIMARY KEY (PATIENT_ID, STAFF_ID),
+FOREIGN KEY (PATIENT_ID) REFERENCES PATIENTS(PATIENT_ID),
+FOREIGN KEY (STAFF_ID) REFERENCES STAFF(STAFF_ID)
+
+);
+
+----------------------------<views>----------------------
 
 CREATE OR REPLACE VIEW Billing_History_View AS
 SELECT
@@ -255,6 +333,8 @@ LEFT JOIN Billing_Details bd ON b.bill_id = bd.bill_id
 LEFT JOIN Services s ON bd.service_id = s.service_id
 LEFT JOIN Medicine_Billing mb ON b.bill_id = mb.bill_id
 LEFT JOIN Inventory i ON mb.item_id = i.item_id;
+
+----------------<Discharge_View>-----------
 
 CREATE OR REPLACE VIEW Discharge_View AS
 SELECT
@@ -347,7 +427,9 @@ LEFT JOIN Room_Assignment ra ON a.appointment_id = ra.appointment_id
 LEFT JOIN Room r ON ra.room_id = r.room_id
 LEFT JOIN Billing b ON a.appointment_id = b.appointment_id
 LEFT JOIN Discharge_Summary ds ON a.appointment_id = ds.appointment_id;
+
 -----<Admin_Overview_View>--------
+
 CREATE OR REPLACE VIEW Admin_Overview_View AS
 SELECT
     (SELECT COUNT(*) FROM Patients) AS total_patients,
@@ -359,7 +441,8 @@ SELECT
     (SELECT SUM(due_amount) FROM Billing) AS total_due
 FROM dual;
 
---Doctor_Performance_View
+---------------------<Doctor_Performance_View>-----------------
+
 CREATE OR REPLACE VIEW Doctor_Performance_View AS
 SELECT
     d.doctor_id,
@@ -372,31 +455,30 @@ LEFT JOIN Appointment a ON d.doctor_id = a.doctor_id
 LEFT JOIN Billing b ON a.appointment_id = b.appointment_id
 GROUP BY d.doctor_id, d.full_name, d.specialization;
 
----index
-CREATE UNIQUE INDEX idx_patients_username ON Patients(pt_username);
-CREATE UNIQUE INDEX idx_doctors_username ON Doctors(dr_username);
-CREATE UNIQUE INDEX idx_staffs_username ON Staffs(staff_username);
+---------------<index>------- 
+CREATE  INDEX idx_patients_username ON Patients(pt_username);
+CREATE  INDEX idx_doctors_username ON Doctors(dr_username);
+CREATE  INDEX idx_staffs_username ON Staffs(staff_username);
 
 CREATE INDEX idx_billdetails_billid ON Billing_Details(bill_id);
 CREATE INDEX idx_medbill_billid ON Medicine_Billing(bill_id);
 
+------------------------<trigger>------------------------
 
---trigger
 CREATE OR REPLACE TRIGGER check_stock_level  
 BEFORE UPDATE ON Inventory  
 FOR EACH ROW  
 BEGIN  
     IF :NEW.quantity < 10 THEN  
         :NEW.alert_status := 'LOW';  
-        DBMS_OUTPUT.PUT_LINE('⚠️ Low stock: ' || :NEW.item_name || ' — only ' || :NEW.quantity || ' left.');  
+        DBMS_OUTPUT.PUT_LINE(' Low stock: ' || :NEW.item_name || ' — only ' || :NEW.quantity || ' left.');  
     ELSE  
         :NEW.alert_status := 'OK';  
     END IF;  
 END;  
 /
-
-
---trg_appointment_reminder
+----------trg_appointment_reminder--------------
+    
 CREATE OR REPLACE TRIGGER trg_appointment_reminder
 AFTER INSERT ON appointment
 FOR EACH ROW
@@ -404,7 +486,9 @@ BEGIN
   DBMS_OUTPUT.PUT_LINE('Reminder: Appointment scheduled for patient ID: ' || :NEW.patient_id);
 END;
 /
+    
 ---trg_room_occupation
+    
 CREATE OR REPLACE TRIGGER trg_room_occupation
 AFTER UPDATE ON ROOMS
 FOR EACH ROW
@@ -415,7 +499,9 @@ BEGIN
   WHERE ROOM_NUMBER = :NEW.ROOM_NUMBER;
 END;
 /
+    
 --- trg_change_patient_type
+    
 CREATE OR REPLACE TRIGGER trg_change_patient_type
 AFTER UPDATE ON ROOM
 FOR EACH ROW
@@ -432,7 +518,9 @@ BEGIN
   WHERE PATIENT_ID = v_patient_id;
 END;
 /
-
+-
+ -----<TRIGGER trg_room_set_available>--------   
+    
 CREATE OR REPLACE TRIGGER trg_room_set_available
 AFTER UPDATE OF discharge_date ON Room_Assignment
 FOR EACH ROW
@@ -447,20 +535,25 @@ END;
 -------------------<PACKAGE>-------------------------
 
 -- PACKAGE SPECIFICATIO
-SET DEFINE OFF;
+
 CREATE OR REPLACE PACKAGE pkg_hospital_mgmt AS
+    
+---insert_patient
   PROCEDURE insert_patient(
     p_name VARCHAR2, p_age INT, p_mobile VARCHAR2, p_blood_group VARCHAR2,
     p_gender VARCHAR2, p_email VARCHAR2, p_address VARCHAR2, p_type VARCHAR2,
     p_username VARCHAR2, p_password_raw VARCHAR2, p_history VARCHAR2);
 
+--------insert_department
   PROCEDURE insert_department(p_name VARCHAR2, p_head VARCHAR2);
 
+---insert_doctor
   PROCEDURE insert_doctor(
     p_name VARCHAR2, p_age INT, p_mobile VARCHAR2, p_qualification VARCHAR2,
     p_gender VARCHAR2, p_email VARCHAR2, p_specialization VARCHAR2,
     p_experience INT, p_department_id INT, p_username VARCHAR2,
     p_password_raw VARCHAR2, p_shift VARCHAR2, p_fees DECIMAL, p_status VARCHAR2);
+
 
   PROCEDURE insert_room(
     p_room_number VARCHAR2, p_room_type VARCHAR2, p_room_status VARCHAR2,
@@ -841,6 +934,7 @@ EXCEPTION
         DBMS_OUTPUT.PUT_LINE('Error: ' || SQLERRM);
      END;
 
+
   PROCEDURE Discharge_Patient_Room(p_appointment_id IN INT)
    IS 
     v_room_id        Room.room_id%TYPE;
@@ -875,84 +969,90 @@ EXCEPTION
         DBMS_OUTPUT.PUT_LINE(' Error: ' || SQLERRM);
     END;
 
-  PROCEDURE Validate_Login( 
-    p_user_type   IN VARCHAR2,  
-    p_username    IN VARCHAR2,  
-    p_password    IN VARCHAR2 )
-     IS 
-      v_count           INT := 0;  
-    v_status          VARCHAR2(20);  
-    v_user_id         INT;  
-BEGIN  
-    IF UPPER(p_user_type) = 'PATIENT' THEN  
-        SELECT COUNT(*), MAX(patient_id) INTO v_count, v_user_id  
-        FROM Patients  
-        WHERE pt_username = p_username AND pt_password = p_password;  
-  
-    ELSIF UPPER(p_user_type) = 'DOCTOR' THEN  
-        SELECT COUNT(*), MAX(doctor_id) INTO v_count, v_user_id  
-        FROM Doctors  
-        WHERE dr_username = p_username AND dr_password = p_password;  
-  
-    ELSIF UPPER(p_user_type) = 'STAFF' THEN  
-        SELECT COUNT(*), MAX(staff_id) INTO v_count, v_user_id  
-        FROM Staffs  
-        WHERE staff_username = p_username AND staff_password = p_password;  
-  
-    ELSE  
-        DBMS_OUTPUT.PUT_LINE(' Invalid user type');  
-        RETURN;  
-    END IF;  
-  
-    -- Determine login status  
-    IF v_count > 0 THEN  
-        v_status := 'Success';  
-        DBMS_OUTPUT.PUT_LINE(' Login successful');  
-        
-        -- Show appropriate dashboard data
-        IF UPPER(p_user_type) = 'PATIENT' THEN  
-            DBMS_OUTPUT.PUT_LINE('--- Patient Dashboard ---');  
-            FOR rec IN (SELECT * FROM Patient_Dashboard_View WHERE patient_id = v_user_id) LOOP  
-                DBMS_OUTPUT.PUT_LINE('Appointment ID: ' || rec.appointment_id || 
-                                     ', Status: ' || rec.appointment_status || 
-                                     ', Due: ₹' || rec.due_amount);  
-            END LOOP;  
-  
-        ELSIF UPPER(p_user_type) = 'DOCTOR' THEN  
-            DBMS_OUTPUT.PUT_LINE('--- Doctor Dashboard ---');  
-            SELECT COUNT(*) INTO v_count FROM Appointment WHERE doctor_id = v_user_id;  
-            DBMS_OUTPUT.PUT_LINE('Total Appointments: ' || v_count);  
-  
-        ELSIF UPPER(p_user_type) = 'STAFF' THEN  
-            DBMS_OUTPUT.PUT_LINE('--- Staff Dashboard ---');  
-            FOR rec IN (SELECT * FROM Staff_Dashboard_View WHERE appointment_status = 'Scheduled') LOOP  
-                DBMS_OUTPUT.PUT_LINE('Appointment ID: ' || rec.appointment_id || 
-                                     ', Patient: ' || rec.patient_name || 
-                                     ', Doctor: ' || rec.doctor_name);  
-            END LOOP;  
-        END IF;  
-  
-    ELSE  
-        v_status := 'Failed';  
-        DBMS_OUTPUT.PUT_LINE(' Invalid username or password');  
-    END IF;  
-  
-    -- Insert audit log  
-    INSERT INTO Login_Audit (  
-        log_id, user_type, username, login_time, status  
-    ) VALUES (  
-        login_audit_seq.NEXTVAL, p_user_type, p_username, SYSTIMESTAMP, v_status  
-    );  
-  
-EXCEPTION  
-    WHEN OTHERS THEN  
-        DBMS_OUTPUT.PUT_LINE(' Error: ' || SQLERRM);  
-        INSERT INTO Login_Audit (  
-            log_id, user_type, username, login_time, status  
-        ) VALUES (  
-            login_audit_seq.NEXTVAL, p_user_type, p_username, SYSTIMESTAMP, 'Error'  
-        );  
-      END;
+ PROCEDURE Validate_Login(
+    p_user_type   IN VARCHAR2,
+    p_username    IN VARCHAR2,
+    p_password    IN VARCHAR2
+) IS
+    v_user_id   INT;
+    v_status    VARCHAR2(20);
+BEGIN
+    BEGIN
+        IF UPPER(p_user_type) = 'PATIENT' THEN
+            SELECT patient_id INTO v_user_id
+            FROM Patients
+            WHERE pt_username = p_username AND pt_password = p_password;
+ 
+        ELSIF UPPER(p_user_type) = 'DOCTOR' THEN
+            SELECT doctor_id INTO v_user_id
+            FROM Doctors
+            WHERE dr_username = p_username AND dr_password = p_password;
+ 
+        ELSIF UPPER(p_user_type) = 'STAFF' THEN
+            SELECT staff_id INTO v_user_id
+            FROM Staffs
+            WHERE staff_username = p_username AND staff_password = p_password;
+ 
+        ELSE
+            DBMS_OUTPUT.PUT_LINE('Invalid user type');
+            RETURN;
+        END IF;
+ 
+        -- Login success
+        v_status := 'Success';
+        DBMS_OUTPUT.PUT_LINE('Login successful');
+ 
+        -- Show dashboard
+        IF UPPER(p_user_type) = 'PATIENT' THEN
+            DBMS_OUTPUT.PUT_LINE('--- Patient Dashboard ---');
+            FOR rec IN (
+                SELECT * FROM Patient_Dashboard_View
+                WHERE patient_id = v_user_id
+            ) LOOP
+                DBMS_OUTPUT.PUT_LINE('Appointment ID: ' || rec.appointment_id ||
+                                     ', Status: ' || rec.appointment_status ||
+                                     ', Due: ₹' || rec.due_amount);
+            END LOOP;
+ 
+        ELSIF UPPER(p_user_type) = 'DOCTOR' THEN
+            DBMS_OUTPUT.PUT_LINE('--- Doctor Dashboard ---');
+            SELECT COUNT(*) INTO v_user_id FROM Appointment WHERE doctor_id = v_user_id;
+            DBMS_OUTPUT.PUT_LINE('Total Appointments: ' || v_user_id);
+ 
+        ELSIF UPPER(p_user_type) = 'STAFF' THEN
+            DBMS_OUTPUT.PUT_LINE('--- Staff Dashboard ---');
+            FOR rec IN (
+                SELECT * FROM Staff_Dashboard_View
+                WHERE appointment_status = 'Scheduled'
+            ) LOOP
+                DBMS_OUTPUT.PUT_LINE('Appointment ID: ' || rec.appointment_id ||
+                                     ', Patient: ' || rec.patient_name ||
+                                     ', Doctor: ' || rec.doctor_name);
+            END LOOP;
+        END IF;
+ 
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            v_status := 'Failed';
+            DBMS_OUTPUT.PUT_LINE('Invalid username or password');
+    END;
+ 
+   --- Audit log
+    INSERT INTO Login_Audit (
+        log_id, user_type, username, login_time, status
+    ) VALUES (
+        login_audit_seq.NEXTVAL, p_user_type, p_username, SYSTIMESTAMP, v_status
+    );
+ 
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error: ' || SQLERRM);
+        INSERT INTO Login_Audit (
+            log_id, user_type, username, login_time, status
+        ) VALUES (
+            login_audit_seq.NEXTVAL, p_user_type, p_username, SYSTIMESTAMP, 'Error'
+        );
+END;
 
   PROCEDURE Generate_Bill(p_appointment_id IN INT) IS
     v_bill_id         INT;
@@ -1168,3 +1268,94 @@ BEGIN
 
 END pkg_hospital_mgmt;
 /
+
+-----------------------<function>-------------------
+
+    --function calculate_discount
+CREATE OR REPLACE FUNCTION calculate_discount (
+    p_total_amount IN NUMBER,
+    p_percent      IN NUMBER
+) RETURN NUMBER IS
+    v_discount NUMBER;
+BEGIN
+    v_discount := (p_total_amount * p_percent) / 100;
+    RETURN v_discount;
+END;
+/
+SELECT calculate_discount(2000, 10) AS discount FROM dual;
+
+---count_available_rooms
+CREATE OR REPLACE FUNCTION count_available_rooms
+RETURN NUMBER IS
+  v_count NUMBER;
+BEGIN
+  SELECT COUNT(*) INTO v_count
+  FROM room
+  WHERE UPPER(room_status) = 'AVAILABLE';
+  
+  RETURN v_count;
+END;
+/
+
+SELECT count_available_rooms AS available_rooms FROM dual;
+
+--count_available_doctors
+CREATE OR REPLACE FUNCTION count_available_doctors
+RETURN NUMBER IS
+  v_count NUMBER;
+BEGIN
+  SELECT COUNT(*) INTO v_count
+  FROM doctors
+  WHERE UPPER(availability_status) = 'AVAILABLE';
+
+  RETURN v_count;
+END;
+/
+
+SELECT count_available_doctors AS available_doctors FROM dual;
+
+--calculate_room_bill
+CREATE OR REPLACE FUNCTION calculate_room_bill (
+    p_room_number IN VARCHAR2,
+    p_days        IN NUMBER
+) RETURN NUMBER IS
+  v_rate NUMBER(10, 2);
+BEGIN
+  SELECT room_charge INTO v_rate
+  FROM room
+  WHERE room_number = p_room_number;
+
+  RETURN v_rate * p_days;
+END;
+/
+SELECT calculate_room_bill('R101', 3) AS total_bill FROM dual;
+
+-- Step 1: Create Object Type
+CREATE OR REPLACE TYPE room_info_obj AS OBJECT (
+  room_number VARCHAR2(10),
+  room_type   VARCHAR2(20)
+);
+/
+
+-- Step 2: Create Table Type of Objects
+CREATE OR REPLACE TYPE room_info_table AS TABLE OF room_info_obj;
+/
+
+-- Step 3: Function Returning Available Rooms
+CREATE OR REPLACE FUNCTION get_available_rooms
+RETURN room_info_table PIPELINED
+AS
+BEGIN
+  FOR rec IN (
+    SELECT room_number, room_type
+    FROM room
+    WHERE UPPER(room_status) = 'AVAILABLE'
+  )
+  LOOP
+    PIPE ROW (room_info_obj(rec.room_number, rec.room_type));
+  END LOOP;
+  RETURN;
+END;
+/
+
+SELECT * FROM TABLE(get_available_rooms);
