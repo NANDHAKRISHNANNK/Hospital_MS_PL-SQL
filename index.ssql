@@ -1,0 +1,6 @@
+CREATE UNIQUE INDEX idx_patients_username ON Patients(pt_username);
+CREATE UNIQUE INDEX idx_doctors_username ON Doctors(dr_username);
+CREATE UNIQUE INDEX idx_staffs_username ON Staffs(staff_username);
+
+CREATE INDEX idx_billdetails_billid ON Billing_Details(bill_id);
+CREATE INDEX idx_medbill_billid ON Medicine_Billing(bill_id);
