@@ -1469,7 +1469,10 @@ GROUP BY d.doctor_id, d.full_name, d.specialization;
 
 
 
-
+BEGIN
+  Create_Auto_Appointment(21, 'Cardiology', TO_DATE('2025-07-15', 'YYYY-MM-DD'), '10:30 AM');
+END;
+/
 
 
 
