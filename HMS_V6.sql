@@ -312,12 +312,8 @@ SELECT
     d.full_name AS doctor_name,
     d.specialization,
     r.room_type,
-    s.service_name,
-    bd.quantity AS service_qty,
-    bd.amount   AS service_amount,
-    i.item_name AS medicine_name,
-    mb.quantity AS medicine_qty,
-    mb.amount   AS medicine_amount,
+    srv.services_summary,
+    med.medicines_summary,
     b.total_amount,
     b.paid_amount,
     b.due_amount,
@@ -329,32 +325,26 @@ JOIN Patients p ON a.patient_id = p.patient_id
 JOIN Doctors d ON a.doctor_id = d.doctor_id
 LEFT JOIN Room_Assignment ra ON a.appointment_id = ra.appointment_id
 LEFT JOIN Room r ON ra.room_id = r.room_id
-LEFT JOIN Billing_Details bd ON b.bill_id = bd.bill_id
-LEFT JOIN Services s ON bd.service_id = s.service_id
-LEFT JOIN Medicine_Billing mb ON b.bill_id = mb.bill_id
-LEFT JOIN Inventory i ON mb.item_id = i.item_id;
+-- Join summarized services
+LEFT JOIN (
+    SELECT bd.bill_id,
+           LISTAGG(s.service_name || ' (Qty: ' || bd.quantity || ', ₹' || bd.amount || ')', '; ') 
+           WITHIN GROUP (ORDER BY s.service_name) AS services_summary
+    FROM Billing_Details bd
+    JOIN Services s ON bd.service_id = s.service_id
+    GROUP BY bd.bill_id
+) srv ON b.bill_id = srv.bill_id
+-- Join summarized medicines
+LEFT JOIN (
+    SELECT mb.bill_id,
+           LISTAGG(i.item_name || ' (Qty: ' || mb.quantity || ', ₹' || mb.amount || ')', '; ') 
+           WITHIN GROUP (ORDER BY i.item_name) AS medicines_summary
+    FROM Medicine_Billing mb
+    JOIN Inventory i ON mb.item_id = i.item_id
+    GROUP BY mb.bill_id
+) med ON b.bill_id = med.bill_id;
 
-----------------<Discharge_View>-----------
 
-CREATE OR REPLACE VIEW Discharge_View AS
-SELECT
-    ds.summary_id,
-    ds.discharge_date,
-    p.patient_id,
-    p.full_name AS patient_name,
-    d.full_name AS doctor_name,
-    r.room_id,
-    r.room_type,
-    ds.diagnosis,
-    ds.treatment_given,
-    ds.follow_up_advice,
-    ds.doctor_remarks
-FROM Discharge_Summary ds
-JOIN Appointment a ON ds.appointment_id = a.appointment_id
-JOIN Patients p ON a.patient_id = p.patient_id
-JOIN Doctors d ON a.doctor_id = d.doctor_id
-LEFT JOIN Room_Assignment ra ON a.appointment_id = ra.appointment_id
-LEFT JOIN Room r ON ra.room_id = r.room_id;
 
  -------------<Patient_Dashboard_View>--------
  CREATE OR REPLACE VIEW Patient_Dashboard_View AS
@@ -1205,7 +1195,7 @@ BEGIN
     v_total_bills       NUMBER := 0;
     v_service_total     NUMBER := 0;
     v_medicine_total    NUMBER := 0;
-    v_room_total        NUMBER := 0;
+    v_room_total        int := 0;
     v_doctor_fee_total  NUMBER := 0;
     v_total_revenue     NUMBER := 0;
 BEGIN
