@@ -12,7 +12,7 @@ DECLARE
 BEGIN
 
   message_body := 
-    'Hello Nnadhakrishnan N,' || CHR(13) || CHR(10) || CHR(10) ||
+    'Hello Nandhakrishnan N,' || CHR(13) || CHR(10) || CHR(10) ||
     'Thank you for visiting our hospital.' || CHR(13) || CHR(10) ||
     'Here are your billing details:' || CHR(13) || CHR(10) ||
     ' Bill ID: 4' || CHR(13) ||
