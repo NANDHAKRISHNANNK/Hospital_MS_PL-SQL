@@ -445,6 +445,26 @@ LEFT JOIN Appointment a ON d.doctor_id = a.doctor_id
 LEFT JOIN Billing b ON a.appointment_id = b.appointment_id
 GROUP BY d.doctor_id, d.full_name, d.specialization;
 
+
+-----------------------<MATERIALIZED VIEW>-----------------
+
+CREATE MATERIALIZED VIEW mv_billing_summary
+BUILD IMMEDIATE
+REFRESH COMPLETE ON DEMAND
+AS
+SELECT
+  TRUNC(bill_date, 'IW') AS week_start,
+  COUNT(*) AS bills_count,
+  SUM(total_amount) AS total_billed,
+  SUM(paid_amount) AS paid_total,
+  SUM(due_amount) AS due_total
+FROM Billing
+GROUP BY TRUNC(bill_date, 'IW');
+
+
+SELECT * FROM mv_billing_summary;
+
+
 ---------------<index>------- 
 CREATE  INDEX idx_patients_username ON Patients(pt_username);
 CREATE  INDEX idx_doctors_username ON Doctors(dr_username);
