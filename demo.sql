@@ -78,6 +78,10 @@ SELECT * FROM Admin_Overview_View;
 SELECT * FROM Doctor_Performance_View;
 SELECT * FROM Billing_History_View;
 
+--------------<MATERIALIZED VIEW>---------------
+
+SELECT * FROM mv_billing_summary;
+
 -------------<Function>-------------
 SELECT calculate_discount(2000, 10) AS discount FROM dual;
 SELECT count_available_rooms AS available_rooms FROM dual;
