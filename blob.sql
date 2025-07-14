@@ -49,7 +49,7 @@ BEGIN
         p_email, p_address, p_type, p_username, RAWTOHEX(v_hashed_password), p_history
     );
 
-    DBMS_OUTPUT.PUT_LINE('✅ Patient inserted with hashed password. ID: ' || v_patient_id);
+    DBMS_OUTPUT.PUT_LINE(' Patient inserted with hashed password. ID: ' || v_patient_id);
 END;
 /
 
@@ -102,10 +102,10 @@ BEGIN
 
     COMMIT;
 
-    DBMS_OUTPUT.PUT_LINE('✅ Image inserted: ' || p_file_name);
+    DBMS_OUTPUT.PUT_LINE('Image inserted: ' || p_file_name);
 EXCEPTION
     WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('❌ Error: ' || SQLERRM);
+        DBMS_OUTPUT.PUT_LINE(' Error: ' || SQLERRM);
 END;
 /
 
