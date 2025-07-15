@@ -29,6 +29,6 @@ BEGIN
         p_email, p_address, p_type, p_username, RAWTOHEX(v_hashed_password), p_history
     );
 
-    DBMS_OUTPUT.PUT_LINE('✅ Patient inserted with hashed password. ID: ' || v_patient_id);
+    DBMS_OUTPUT.PUT_LINE(' Patient inserted with hashed password. ID: ' || v_patient_id);
 END;
 /
